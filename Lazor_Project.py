@@ -47,6 +47,13 @@ class lazor:
         self.d = direction
 
 
+class grid:
+    def __init__(self,board_file):
+        self.board = self.read_board_file(board_file)
+
+    def read_board_file(self, board_file):
+        pass
+
 #creating a function that will run until it solves the lazor problem
 def lazor_solver(board_file):
     pass
