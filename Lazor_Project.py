@@ -42,7 +42,7 @@ class refract_block(block):
 
 
 
-class lazor:
+class lazor: #might not need lazor class
     def __init__(self,direction):
         self.d = direction
 
@@ -54,6 +54,6 @@ class grid:
     def read_board_file(self, board_file):
         pass
 
-#creating a function that will run until it solves the lazor problem
-def lazor_solver(board_file):
-    pass
+    #creating a function that will run until it solves the lazor problem
+    def lazor_solver(board_file):
+        pass
