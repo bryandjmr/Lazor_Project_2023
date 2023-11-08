@@ -1,59 +1,40 @@
-
-#maybe create subclasses that react to the lazor differently (option 1)
-#or build in that into the block class (option 2)
+"""
+Lazor Project
+"""
 
 class block:
     def __init__(self, position, type):
         self.p = position
         self.t = type
 
-    #option 2
-    def lazor_interaction(self,lazor):
+    #changes trajectory of lazor depending on block
+    def lazor_interaction(self,lazor_beam):
         if self.t == 0: #opaque
-            pass
+            return lazor()
         elif self.t == 1: #reflect
-            pass
+            return lazor()
         elif self.t == 2: #refract
-            pass
-
-
-#option 1
-class opaque_block(block):
-    def __init__(self, position, type):
-        super.__init__(self, position, type)
-    
-    def lazor_interaction(self,lazor):
-        pass
-
-
-class reflect_block(block):
-    def __init__(self, position, type):
-        super.__init__(self, position, type)
-    
-    def lazor_interaction(self,lazor):
-        pass
-
-class refract_block(block):
-    def __init__(self, position, type):
-        super.__init__(self, position, type)
-    
-    def lazor_interaction(self,lazor):
-        pass
-
+            return lazor()
 
 
 class lazor:
-    def __init__(self,direction):
-        self.d = direction
+    def __init__(self, inital_p, direction):
+        self.p = inital_p
+        self.v = direction
+
+    #determines if lazor reaches the goal
+    def check_final(self,final): 
+        return (self.v[1] / self.v[0]) == (final[1] - self.p[1]) / (final[0] - self.p[0])
 
 
 class grid:
     def __init__(self,board_file):
         self.board = self.read_board_file(board_file)
 
+    #reads input board file and translate it into code
     def read_board_file(self, board_file):
         pass
 
-#creating a function that will run until it solves the lazor problem
-def lazor_solver(board_file):
-    pass
+    #function that solves the board
+    def lazor_solver(board_file):
+        pass
