@@ -89,6 +89,7 @@ def parse_bff(filename):
                 fixed_blocks.append(Block(cell, (x, y), True))
                 grid[y][x] = 'o'  # Optional: Replace the block symbols with something else like 'o'
     return grid, movable_blocks, fixed_blocks, lasers, points
+
 def find_fixed_block_positions(block_type, grid):
     fixed_blocks = []
     for y, row in enumerate(grid):
