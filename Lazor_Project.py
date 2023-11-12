@@ -14,9 +14,13 @@ class Block:
             return [], []  # Laser stops, no lasers continue.
 
         elif self.block_type == 'C':
+            reflect_laser = Laser(laser.position, (-laser.direction[0],laser.direction[1]))
             through_laser = Laser(laser.position, laser.direction)
-            reflect_laser = Laser(laser.position, (laser.direction[1],-laser.direction[0]))
             return [through_laser],[reflect_laser]
+        
+        elif self.block_type == 'x':
+            laser.move()
+            return [laser],[]
 
 class Laser:
     def __init__(self, position, direction):
@@ -31,9 +35,8 @@ class Laser:
     def reflect(self):
         """Reflects the laser's direction by 90 degrees, simulating a 45-degree
         angle of incidence and reflection with respect to the block's face."""
-        self.direction = (self.direction[1], -self.direction[0])
-        self.position = (self.position[0] + self.direction[0],
-                         self.position[1] + self.direction[1])
+        self.direction = (-self.direction[0], self.direction[1])
+
 
 def parse_bff(filename):
     """
@@ -47,6 +50,7 @@ def parse_bff(filename):
     # Initializing lists to hold various elements
     grid = []
     fixed_blocks = {}
+    empty_blocks = []
     movable_blocks = []
     lasers = []
     points = []
@@ -81,6 +85,8 @@ def parse_bff(filename):
             line = line[1:]
             if line:  # Assuming points lines are not empty
                 points.append(tuple(map(int, line.split())))
+    
+    grid = [[cell for cell in row if cell != ' '] for row in grid]
 
     # Convert grid symbols to Block objects for fixed blocks
     for y, row in enumerate(grid):
@@ -88,9 +94,11 @@ def parse_bff(filename):
             if cell in 'ABC':
                 fixed_blocks[(x,y)] = Block(cell, (x, y), True)
                 grid[y][x] = cell  # Optional: Replace the block symbols with something else like 'o'
-    grid = [[cell for cell in row if cell != ' '] for row in grid]
+            if cell in 'x':
+                empty_blocks.append((x,y))
+                grid[y][x] = cell
     
-    return grid, movable_blocks, fixed_blocks, lasers, points
+    return grid, movable_blocks, fixed_blocks, empty_blocks, lasers, points
 
 
 def simulate_lasers(grid, config, lasers):
@@ -107,30 +115,41 @@ def simulate_lasers(grid, config, lasers):
 def trace_laser_path(grid, config, laser):
     """Trace the path of a single laser given the grid and block configuration."""
     path = []
-
+    
     while True:
-        # Move the laser one step
-        laser.move()
-        next_position = laser.position
-
-        # Check if next position is outside the grid
-        if not is_position_inside_grid(next_position, grid):
-            break
-
-        if next_position in config.keys():  # If there's a block at the position
-            block = config[next_position]
-            result = block.interact_with_laser(laser)
-            continuing_lasers, new_lasers = result
-            path.append(next_position)  # Add the interaction point to the path
-            # Handle continuing lasers
-            for lsr in continuing_lasers:
-                path += trace_laser_path(grid, config, lsr)  # Recursively trace the path of the continuing laser
-            # Handle new lasers created by refraction, if any
-            for lsr in new_lasers:
-                path += trace_laser_path(grid, config, lsr)  # Recursively trace the path of the new laser
-            break  # Once a block is encountered, we stop the current laser
         
-        path.append(next_position) # If there's no block, just add the position to the path
+        current_position, current_direction= laser.position,laser.direction
+        next_laser = Laser(current_position, current_direction)
+        next_laser.move()
+        next_position = next_laser.position
+        
+        if not is_position_inside_grid(current_position, grid):
+            break
+    
+        if current_position in config.keys():
+            if next_position not in config.keys():
+                path.append(laser.position)    
+                laser.move()
+            else:
+                path.append(laser.position)
+                block = config[laser.position]
+                result = block.interact_with_laser(laser)
+                continuing_laser, new_laser = result
+                
+                for lsr in continuing_laser:
+                    lsr.move()
+                    next_position = lsr.position
+                    if is_position_inside_grid(lsr.position, grid):
+                        path += trace_laser_path(grid, config, lsr)
+                for lsr in new_laser:
+                    lsr.move()
+                    if is_position_inside_grid(lsr.position, grid):
+                        path += trace_laser_path(grid, config, lsr)
+                break
+        
+        else:
+            path.append(laser.position)
+            laser.move()
 
     return path
 
@@ -152,24 +171,24 @@ def is_solution(grid, config, target_points):
     laser_paths = simulate_lasers(grid, config, lasers)
     return check_all_target_points_met(target_points, laser_paths)
 
-def get_possible_positions(grid, fixed_blocks, movable_blocks, remaining_blocks, movable_config={}, configs_list=[]):
-
+def get_possible_positions(grid, fixed_blocks, empty_blocks, movable_blocks, remaining_blocks, movable_config={}, configs_list=[]):
     # Base case: if no more blocks to place, print the current configuration
     if remaining_blocks == 0:
         config = {**fixed_blocks, **movable_config}
+        configs_list.append(config)
         return
 
     # Iterate over all cells in the grid
     for i in range(len(grid[0])):
         for j in range(len(grid[1])):
             # Check if the cell is empty and not a fixed block position
-            if (i, j) not in fixed_blocks.keys() and (i, j) not in movable_config.keys():
+            if (i, j) not in fixed_blocks.keys() and (i, j) not in empty_blocks and (i, j) not in movable_config.keys():
 
                 # Place a block in the current cell
                 movable_config[(i,j)] = movable_blocks[remaining_blocks-1][1]
 
                 # Recursively generate configurations for the remaining blocks
-                get_possible_positions(grid, fixed_blocks, movable_blocks, remaining_blocks - 1, movable_config)
+                get_possible_positions(grid, fixed_blocks, empty_blocks, movable_blocks, remaining_blocks - 1, movable_config)
 
                 # Backtrack by removing the last block placed
                 movable_config.popitem()
@@ -189,14 +208,26 @@ def expand_block_coordinate(grid, config):
     
     return(expand_config)
 
-def solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, lasers, target_points, n=1):
-    configs_list = get_possible_positions(grid, fixed_blocks, movable_blocks, len(movable_blocks))
-   
-    pass
+def solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points, n=1):
+    configs_list = get_possible_positions(grid, fixed_blocks, empty_blocks, movable_blocks, len(movable_blocks))
+    
+    for config in configs_list:
+        expanded_config = expand_block_coordinate(grid, config)
 
+        if is_solution(grid, expanded_config, target_points):
+            for position, block in config.items():
+                 grid[position[1]][position[0]] = block.block_type
+            
+            print("Solution:")
+            for row in grid:
+                for block in row:
+                    print(block, end=' ')  # Print the element followed by a space
+                print() 
+                
+            return
+    
+    
 if __name__ == "__main__":
-    grid, movable_blocks, fixed_blocks, lasers, target_points = parse_bff('tiny_5.bff')
+    grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points = parse_bff('dark_1.bff')
 
-    # solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, lasers, target_points)
-    
-    
+    solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points)
