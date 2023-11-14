@@ -22,6 +22,7 @@ class block:
 
         self.t = type
         self.p = None
+        self.fixed = False
 
     def __eq__(self, other):
         """
@@ -286,7 +287,9 @@ class lazor_game:
                 elif raw_grid[i][j] == "x":
                     continue
                 else:
-                    self.grid[x][y] = block(raw_grid[i][j])
+                    b = block(raw_grid[i][j])
+                    b.fixed = True
+                    self.grid[x][y] = b
                     self.block_place(self.grid[x][y], [y, x])
 
         for y, x in goals:
@@ -486,6 +489,9 @@ class lazor_game:
             self.block_place(grid, b, random.choice(rand_pos))
         return grid
 
+    def new_combination(self, grid):
+        pass
+
     def lazor_solver(self):
         """
         This function utilizes an algorithm to solve the lazor
@@ -501,11 +507,11 @@ class lazor_game:
         stop = 0
         while not self.push_lazors(grid, lazor_list) and stop < 100:
             #need to get new grid value here somehow!!!!!!
-            grid = self.new_combination(grid, self.block_list.copy())
+            grid = self.new_combination()
             stop += 1
         print('Algorithm is done')
 
 if __name__ == "__main__":
-    a = lazor_game('mad_1')
+    a = lazor_game('dark_1')
     a.lazor_solver()
     a.display()
