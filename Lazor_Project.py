@@ -1,7 +1,7 @@
 """
 Lazor Project
 """
-
+import random
 
 class block:
     """
@@ -476,9 +476,14 @@ class lazor_game:
                 grid[x][y] = 2
 
     def random_place(self, grid, block_list):
-        pos = [[1,5], [7,3], [5,1]]
+        rand_pos = []
+        for i, row in enumerate(grid):
+            for j, value in enumerate(row):
+                if value == 1:
+                    rand_pos.append([j,i])
+
         for i,b in enumerate(block_list):
-            self.block_place(grid, b, pos[i])
+            self.block_place(grid, b, random.choice(rand_pos))
         return grid
 
     def lazor_solver(self):
@@ -493,10 +498,11 @@ class lazor_game:
         """
         grid = self.random_place(self.grid.copy(), self.block_list.copy())
         lazor_list = self.lazor_list.copy()
-        while not self.push_lazors(grid, lazor_list):
-            #then here I would have to come up with different iterations
-            print('fail')
-        
+        stop = 0
+        while not self.push_lazors(grid, lazor_list) and stop < 100:
+            #need to get new grid value here somehow!!!!!!
+            grid = self.new_combination(grid, self.block_list.copy())
+            stop += 1
         print('Algorithm is done')
 
 if __name__ == "__main__":
