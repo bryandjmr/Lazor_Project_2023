@@ -519,7 +519,7 @@ class lazor_game:
         base_grid = grid = self.random_place(dc(self.grid), dc(self.b_list))
         stop = 0
         #done = self.push_lazors(grid, dc(self.l_list))
-        while not self.push_lazors(grid, dc(self.l_list)) and stop < 1000:
+        while not self.push_lazors(grid, dc(self.l_list)) and stop < 3500:
         #while not done and stop < 100:
             #for i in self.b_list:
                 #grid = self.new_combination(base_grid, grid)
