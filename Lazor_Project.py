@@ -5,17 +5,24 @@ class Block:
         self.position = position
         self.fixed = fixed
 
-    def interact_with_laser(self, laser):
+    def interact_with_laser(self, laser, side):
         if self.block_type == 'A':
-            laser.reflect()  # Reflect method needs to be defined in Laser class
+            if side == 1:
+                laser.reflect_top_bottom()
+            if side == 2:
+                laser.reflect_sides()
             return [laser],[]  # Only one laser continues, no new laser created.
 
         elif self.block_type == 'B':
             return [], []  # Laser stops, no lasers continue.
 
         elif self.block_type == 'C':
-            reflect_laser = Laser(laser.position, (-laser.direction[1],-laser.direction[0]))
             through_laser = Laser(laser.position, laser.direction)
+            reflect_laser = Laser(laser.position, laser.direction)
+            if side == 1:
+                reflect_laser.reflect_top_bottom()
+            if side == 2:
+                reflect_laser.reflect_sides()
             return [through_laser],[reflect_laser]
         
         elif self.block_type == 'x':
@@ -32,10 +39,13 @@ class Laser:
         self.position = (self.position[0] + self.direction[0],
                          self.position[1] + self.direction[1])
         
-    def reflect(self):
+    def reflect_top_bottom(self):
         """Reflects the laser's direction by 90 degrees, simulating a 45-degree
         angle of incidence and reflection with respect to the block's face."""
-        self.direction = (-self.direction[1], self.direction[0])
+        self.direction = (self.direction[0], -self.direction[1])
+    
+    def reflect_sides(self):
+        self.direction = (-self.direction[0], self.direction[1])
 
 
 def parse_bff(filename):
@@ -130,27 +140,21 @@ def trace_laser_path(grid, config, laser, last_block = 'o'):
             if next_position not in config.keys():
                 path.append(laser.position)
                 last_block = 'o'
-                print(laser.position, last_block)
                 laser.move()
             else:
                 path.append(laser.position)
                 
                 if len(config[current_position]) == 1:  
-                    block = config[current_position][0]
+                    block = config[current_position][0][0]
                     last_block = block.block_type
-                    print(laser.position, last_block)
-                    result = block.interact_with_laser(laser)
+                    result = block.interact_with_laser(laser, config[current_position][0][1])
                     continuing_laser, new_laser = result
                 
                 else:
-                    for blk in config[laser.position]:
-                        if last_block == 'C' and blk.block_type == 'C':
-                            last_block = 'C'
-                            pass
-                        else:
-                            last_block = blk.block_type
-                            result = blk.interact_with_laser(laser)
-                            continuing_laser, new_laser = result
+                    block = config[current_position][0][0]
+                    last_block = block.block_type
+                    result = block.interact_with_laser(laser, config[current_position][0][1])
+                    continuing_laser, new_laser = result
                     
                 for lsr in continuing_laser:
                     lsr.move()
@@ -165,7 +169,6 @@ def trace_laser_path(grid, config, laser, last_block = 'o'):
         
         else:
             path.append(laser.position)
-            print(laser.position, last_block)
             laser.move()
 
     return path
@@ -219,16 +222,16 @@ def expand_block_coordinate(grid, config):
     for position, block in config.items():
         x, y = position[0], position[1]
         all_sides = []
-        all_sides.append((x*2+1,y*2))
-        all_sides.append((x*2+1,y*2+2))
-        all_sides.append((x*2,y*2+1))
-        all_sides.append((x*2+2,y*2+1))
+        all_sides.append([(x*2+1,y*2), 1])
+        all_sides.append([(x*2+1,y*2+2), 1])
+        all_sides.append([(x*2,y*2+1), 2])
+        all_sides.append([(x*2+2,y*2+1), 2])
         
         for side in all_sides:
-            if side not in expand_config:
-                expand_config[side] = [block]
+            if side[0] not in expand_config:
+                expand_config[side[0]] = [[block, side[1]]]
             else:
-                expand_config[side].append(block)
+                expand_config[side[0]].append([block, side[1]])
 
     return(expand_config)
 
@@ -253,12 +256,5 @@ def solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, empty_blocks, lasers,
 if __name__ == "__main__":
     grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points = parse_bff('tiny_5.bff')
 
-    # solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points)
+    solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, empty_blocks, lasers, target_points)
     
-    a = Block('A', None)
-    b = Block('B', None)
-    c = Block('C', None)
-    
-    config = {(0,0):a, (0,2):a, (2,0):a, (1,2):c}
-    
-    print(simulate_lasers(grid, expand_block_coordinate(grid, config), lasers))
