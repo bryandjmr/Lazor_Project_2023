@@ -2,6 +2,7 @@
 Lazor Project
 """
 import random
+from copy import deepcopy as dc
 
 class block:
     """
@@ -87,8 +88,10 @@ class block:
             Ls: *list*
                 List of lazors that are created from collision
         """
-        
-        if self.t == 'A': #reflect
+        if L.pi == pc:
+            L.pf = pc
+            return L, []
+        elif self.t == 'A': #reflect
             L.pf = pc #point of contact
             return L, [self.reflection(L, pc)]
         elif self.t == 'B': #opaque
@@ -208,8 +211,8 @@ class lazor_game:
                 The name of the level file that will be solved
         """
         
-        self.block_list = []
-        self.lazor_list = []
+        self.b_list = []
+        self.l_list = []
         self.goals = 0
         self.read_board_file(board_file)
 
@@ -240,24 +243,25 @@ class lazor_game:
 
                 elif line[0] == 'A': #reflect
                     for i in range(int(line[2])):
-                        self.block_list.append(block('A'))
+                        self.b_list.append(block('A'))
 
                 elif line[0] == 'B': #opaque
                     for i in range(int(line[2])):
-                        self.block_list.append(block('B'))
+                        self.b_list.append(block('B'))
 
                 elif line[0] == 'C': #refract
                     for i in range(int(line[2])):
-                        self.block_list.append(block('C'))
+                        self.b_list.append(block('C'))
 
                 elif line[0] == 'L': #lazor
                     L, x, y, vx, vy = line.split()
-                    self.lazor_list.append(lazor([x, y], [vx, vy]))
+                    self.l_list.append(lazor([x, y], [vx, vy]))
 
                 elif line[0] == 'P': #goals
                     goals.append([int(line[2]),int(line[4])])
         board.close()
 
+        self.raw_grid = raw_grid
         self.goals = len(goals)
         self.create_grid(raw_grid, goals)
 
@@ -294,15 +298,6 @@ class lazor_game:
 
         for y, x in goals:
             self.grid[x][y] = 3
-
-    def display(self):
-        """
-        Displays the grid of the level.
-        """
-        
-        print('Grid: ')
-        for i in self.grid:
-            print(i)
 
     def out_bounds(self, x, y):
         """
@@ -440,17 +435,29 @@ class lazor_game:
         """
         
         win = 0
+        b_list = []
         for row in grid:
             for value in row:
                 if value == 5 or value == 6: #means lazor passes through
                     win += 1
+                elif type(value) == block:#collecting the blocks
+                    b_list.append(value)
+
         if win == self.goals:
-            print('Winner! You won!')
-            for b in self.block_list:
-                print('Place Block %s on tile [%i, %i]' % (b.t, (b.p[0]-1)/2, (b.p[1]-1)/2))
+
+            with open('solutions.txt', 'w') as sol:
+                for b in b_list:
+                    x = int((b.p[1] - 1) / 2)
+                    y = int((b.p[0] - 1) / 2)
+                    self.raw_grid[x][y] = b.t
+
+                sol.write('Congratulations! You won! \n')
+                sol.write('\n')
+                for row in self.raw_grid:
+                    sol.write('%s \n' % row)
+                sol.close()
             return True
         else:
-            print('Loser! You are a loser!')
             return False
 
 
@@ -489,8 +496,15 @@ class lazor_game:
             self.block_place(grid, b, random.choice(rand_pos))
         return grid
 
-    def new_combination(self, grid):
-        pass
+    def new_combination(self, base_grid, grid):
+        block_list = []
+        for i, row in enumerate(grid):
+            for j, value in enumerate(row):
+                if type(value) == block:
+                    if value.fixed == False:
+                        block_list.append(value)
+                        value = 1
+        
 
     def lazor_solver(self):
         """
@@ -502,16 +516,21 @@ class lazor_game:
             value: *int or float*
                 ffff
         """
-        grid = self.random_place(self.grid.copy(), self.block_list.copy())
-        lazor_list = self.lazor_list.copy()
+        base_grid = grid = self.random_place(dc(self.grid), dc(self.b_list))
         stop = 0
-        while not self.push_lazors(grid, lazor_list) and stop < 100:
-            #need to get new grid value here somehow!!!!!!
-            grid = self.new_combination()
+        #done = self.push_lazors(grid, dc(self.l_list))
+        while not self.push_lazors(grid, dc(self.l_list)) and stop < 1000:
+        #while not done and stop < 100:
+            #for i in self.b_list:
+                #grid = self.new_combination(base_grid, grid)
+            #    if self.push_lazors(grid, dc(self.l_list)):
+            #        done = True
+            #        break
+            grid = self.random_place(dc(self.grid), dc(self.b_list))
+            print(stop)
             stop += 1
         print('Algorithm is done')
 
 if __name__ == "__main__":
-    a = lazor_game('dark_1')
+    a = lazor_game('mad_1')
     a.lazor_solver()
-    a.display()
