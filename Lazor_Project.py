@@ -321,7 +321,7 @@ class lazor_game:
         
         return x < 0 or x >= len(self.grid) or y >= len(self.grid[0]) or y < 0
 
-    def determine_block(self, p, L):
+    def determine_block(self, grid, p, L):
         """
         Determines what block the lasor might be reflecting off
         of.
@@ -353,11 +353,11 @@ class lazor_game:
             i1, j1 = ps1[i]
             i2, j2 = ps2[i]
             if not self.out_bounds(i1, j1):
-                if type(self.grid[i1][j1]) == block:
-                    b1.append(self.grid[i1][j1])
+                if type(grid[i1][j1]) == block:
+                    b1.append(grid[i1][j1])
             if not self.out_bounds(i2, j2):
-                if type(self.grid[i2][j2]) == block:
-                    b2.append(self.grid[i2][j2])
+                if type(grid[i2][j2]) == block:
+                    b2.append(grid[i2][j2])
 
         #determines block by finding the common block
         for i in b1:
@@ -370,7 +370,7 @@ class lazor_game:
         elif len(b) == 1:
             return True, b[0]
 
-    def push_lazors(self, Ls):
+    def push_lazors(self, grid, Ls):
         """
         Determines how the lazors' trajectory will
         change with the current position of the
@@ -395,13 +395,13 @@ class lazor_game:
             done = False
             collision = [2,4,6]
             while not done: #push lazors to end point
-                t_value, b = self.determine_block([y, x], L)
-                grid_value = self.grid[x][y]
+                t_value, b = self.determine_block(grid, [y, x], L)
+                grid_value = grid[x][y]
 
                 #collision is occuring
                 if grid_value in collision and t_value:
                     if grid_value == 4:
-                        self.grid[x][y] = 6
+                        grid[x][y] = 6
                     L, hit = b.lazor_interaction(L, [y, x])
                     Ls.remove(L)
                     done = True
@@ -410,13 +410,13 @@ class lazor_game:
                 else:
                     #lazor current step is pushed forward
                     if grid_value == 3: #passes goal
-                        self.grid[x][y] = 5
+                        grid[x][y] = 5
                     x, y = x + L.v[1], y + L.v[0]
                     if self.out_bounds(x, y): #checks for out of bound
                         L.pf = [y - L.v[0], x - L.v[1]]
                         done = True
                         Ls.remove(L)
-        return self.check_win(self.grid)
+        return self.check_win(grid)
 
     def check_win(self, grid):
         """
@@ -442,8 +442,8 @@ class lazor_game:
                 if value == 5 or value == 6: #means lazor passes through
                     win += 1
         if win == self.goals:
+            print('Winner! You won!')
             for b in self.block_list:
-                print('Winner! You won!')
                 print('Place Block %s on tile [%i, %i]' % (b.t, (b.p[0]-1)/2, (b.p[1]-1)/2))
             return True
         else:
@@ -452,7 +452,7 @@ class lazor_game:
 
 
     #function to place block
-    def block_place(self, b, p):
+    def block_place(self, grid, b, p):
         """
         The function assigns a block to a location on the grid
         so that it can be seen how it impacts the lazor's 
@@ -468,12 +468,18 @@ class lazor_game:
         
         y, x = b.p = p
         ps = [[x + 1,y], [x - 1, y], [x, y + 1], [x, y - 1]]
-        self.grid[x][y] = b
+        grid[x][y] = b
         for x, y in ps: #places little marker near block
-            if self.grid[x][y] == 3:
-                self.grid[x][y] = 4
+            if grid[x][y] == 3:
+                grid[x][y] = 4
             else:
-                self.grid[x][y] = 2
+                grid[x][y] = 2
+
+    def random_place(self, grid, block_list):
+        pos = [[1,5], [7,3], [5,1]]
+        for i,b in enumerate(block_list):
+            self.block_place(grid, b, pos[i])
+        return grid
 
     def lazor_solver(self):
         """
@@ -485,15 +491,15 @@ class lazor_game:
             value: *int or float*
                 ffff
         """
+        grid = self.random_place(self.grid.copy(), self.block_list.copy())
+        lazor_list = self.lazor_list.copy()
+        while not self.push_lazors(grid, lazor_list):
+            #then here I would have to come up with different iterations
+            print('fail')
         
-        B1, B2, B3 = self.block_list
-        self.block_place(B1, [1,5])
-        self.block_place(B2, [1,3])
-        self.block_place(B3, [3,5])
-        return self.push_lazors(self.lazor_list)
+        print('Algorithm is done')
 
 if __name__ == "__main__":
-    a = lazor_game('dark_1')
-    print(a.lazor_solver())
-    for i in a.grid:
-        print(i)
+    a = lazor_game('mad_1')
+    a.lazor_solver()
+    a.display()
