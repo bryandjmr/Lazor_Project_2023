@@ -1,9 +1,7 @@
 """
 Lazor Project
 """
-import random
 from copy import deepcopy as dc
-from math import factorial as f
 
 class block:
     """
@@ -462,9 +460,20 @@ class lazor_game:
 
     def grid_game_form(self, grid):
         """
-        ffff
+        Converts a grid into its game form which is the form
+        located in a bff file.
 
+        **Parameters**
 
+            grid: *list*
+                A nested list that describes how the grid of the
+                game looks like for this current iteration.
+
+        **Returns**
+
+            raw_grid: *list*
+                A nested list that describes the game verision of
+                the current iteration of the grid.
         """
 
         raw_grid = [[0]*((len(grid)-1)/2) for i in range((len(grid)-1)/2)]
@@ -504,6 +513,23 @@ class lazor_game:
                 grid[x][y] = 2
 
     def frame(self, pos):
+        """
+        Generates a grid based on a specific set of block placements
+        that are listed in the list pos.
+
+        **Parameters**
+
+            pos: *list*
+                Holds an ordered list of the positions that the blocks
+                need to be placed in.
+
+        **Returns**
+
+            grid: *list*
+                A nested list that describes an iteration that has a 
+                unique block configuration of the level.
+        """
+
         grid = dc(self.grid)
         b_list = dc(self.b_list)
         for i, b in enumerate(b_list):
@@ -511,36 +537,28 @@ class lazor_game:
         return grid
 
     def generate_grids(self):
+        """
+        Creates a list of grids which will be tested to see if
+        their configuration holds the solution.
+
+        **Returns**
+
+            grids: *list*
+                A list of grids, where a grid is a nested list with
+                a specific configuration of block placement
+        """
+
         grids = []
         pos = [] # need to figure this out
         for p in pos:
             self.grids(self.frame(p))
-        '''pos = []
-        for i, row in enumerate(self.grid):
-            for j, value in enumerate(row):
-                if value == 1:
-                    pos.append([j,i])
-        a, b, c = [], [], [], []
-        for bl in self.b_list:
-            if bl.t == 'A':
-                a.append(bl)
-            elif bl.t == 'B':
-                b.append(bl)
-            elif bl.t == 'C':
-                c.append(bl)
-        total = len(self.raw_grid)*len(self.raw_grid[0])
-        print('Worst outcome: ', f(len(pos))/(f(len(a))*f(len(b))*f(len(c))*f(len(total)-len(self.b_list)-len(pos))))'''
         return grids
 
     def lazor_solver(self):
         """
-        This function utilizes an algorithm to solve the lazor
-        level that was inputed into the lazor_game class.
-
-        **Returns** (need to figure this out)
-
-            value: *int or float*
-                ffff
+        This function solves a level inputted into the lazor game
+        class by creating a series of possible block combinations
+        and testing to see which configuration wins the level.
         """
 
         grids = self.generate_grids()
