@@ -3,6 +3,7 @@ Lazor Project
 """
 import random
 from copy import deepcopy as dc
+from math import factorial as f
 
 class block:
     """
@@ -261,7 +262,6 @@ class lazor_game:
                     goals.append([int(line[2]),int(line[4])])
         board.close()
 
-        self.raw_grid = raw_grid
         self.goals = len(goals)
         self.create_grid(raw_grid, goals)
 
@@ -289,12 +289,12 @@ class lazor_game:
                 if raw_grid[i][j] == "o":
                     self.grid[x][y] = 1 #possible center of block
                 elif raw_grid[i][j] == "x":
-                    continue
+                    self.grid[x][y] = 7 #blocks cannot be here
                 else:
                     b = block(raw_grid[i][j])
                     b.fixed = True
                     self.grid[x][y] = b
-                    self.block_place(self.grid[x][y], [y, x])
+                    self.block_place(self.grid, self.grid[x][y], [y, x])
 
         for y, x in goals:
             self.grid[x][y] = 3
@@ -444,7 +444,7 @@ class lazor_game:
                     b_list.append(value)
 
         if win == self.goals:
-
+            raw_grid = self.grid_game_form(grid)
             with open('solutions.txt', 'w') as sol:
                 for b in b_list:
                     x = int((b.p[1] - 1) / 2)
@@ -453,13 +453,31 @@ class lazor_game:
 
                 sol.write('Congratulations! You won! \n')
                 sol.write('\n')
-                for row in self.raw_grid:
+                for row in raw_grid:
                     sol.write('%s \n' % row)
                 sol.close()
             return True
         else:
             return False
 
+    def grid_game_form(self, grid):
+        """
+        ffff
+
+
+        """
+
+        raw_grid = [[0]*((len(grid)-1)/2) for i in range((len(grid)-1)/2)]
+        for i in range(len(grid)):
+            for j in range(len(grid)):
+                x, y = (i-1)/2, (j-1)/2
+                if type(grid[i][j]) == block:
+                    raw_grid[x][y] = grid[i][j].t
+                elif grid[i][j] == 1:
+                    raw_grid[x][y] = 'o'
+                elif grid[i][j] == 7:
+                    raw_grid[x][y] = 'x'
+        return raw_grid
 
     #function to place block
     def block_place(self, grid, b, p):
@@ -485,26 +503,34 @@ class lazor_game:
             else:
                 grid[x][y] = 2
 
-    def random_place(self, grid, block_list):
-        rand_pos = []
-        for i, row in enumerate(grid):
-            for j, value in enumerate(row):
-                if value == 1:
-                    rand_pos.append([j,i])
-
-        for i,b in enumerate(block_list):
-            self.block_place(grid, b, random.choice(rand_pos))
+    def frame(self, pos):
+        grid = dc(self.grid)
+        b_list = dc(self.b_list)
+        for i, b in enumerate(b_list):
+            self.block_place(grid, b, pos[i])
         return grid
 
-    def new_combination(self, base_grid, grid):
-        block_list = []
-        for i, row in enumerate(grid):
+    def generate_grids(self):
+        grids = []
+        pos = [] # need to figure this out
+        for p in pos:
+            self.grids(self.frame(p))
+        '''pos = []
+        for i, row in enumerate(self.grid):
             for j, value in enumerate(row):
-                if type(value) == block:
-                    if value.fixed == False:
-                        block_list.append(value)
-                        value = 1
-        
+                if value == 1:
+                    pos.append([j,i])
+        a, b, c = [], [], [], []
+        for bl in self.b_list:
+            if bl.t == 'A':
+                a.append(bl)
+            elif bl.t == 'B':
+                b.append(bl)
+            elif bl.t == 'C':
+                c.append(bl)
+        total = len(self.raw_grid)*len(self.raw_grid[0])
+        print('Worst outcome: ', f(len(pos))/(f(len(a))*f(len(b))*f(len(c))*f(len(total)-len(self.b_list)-len(pos))))'''
+        return grids
 
     def lazor_solver(self):
         """
@@ -516,21 +542,13 @@ class lazor_game:
             value: *int or float*
                 ffff
         """
-        base_grid = grid = self.random_place(dc(self.grid), dc(self.b_list))
-        stop = 0
-        #done = self.push_lazors(grid, dc(self.l_list))
-        while not self.push_lazors(grid, dc(self.l_list)) and stop < 3500:
-        #while not done and stop < 100:
-            #for i in self.b_list:
-                #grid = self.new_combination(base_grid, grid)
-            #    if self.push_lazors(grid, dc(self.l_list)):
-            #        done = True
-            #        break
-            grid = self.random_place(dc(self.grid), dc(self.b_list))
-            print(stop)
-            stop += 1
+
+        grids = self.generate_grids()
+        for grid in grids:
+            if self.push_lazors(grid, dc(self.t_list)):
+                break
         print('Algorithm is done')
 
 if __name__ == "__main__":
-    a = lazor_game('mad_1')
+    a = lazor_game('tiny_5')
     a.lazor_solver()
