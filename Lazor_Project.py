@@ -2,12 +2,14 @@
 Lazor Project
 """
 
+from copy import deepcopy as dc #used to create copied list
+import itertools
 
 class block:
     """
     Class object that captures how blocks in the Lazor game
     relate to each other (equality comparison) and how different
-    blocks interact with the lazor
+    blocks interact with the lazor.
     """
 
     def __init__(self, type):
@@ -17,11 +19,12 @@ class block:
         **Parameters**
 
             type: *int or float*
-                The input value to the function
+                The input value to the function.
         """
 
         self.t = type
         self.p = None
+        self.fixed = False
 
     def __eq__(self, other):
         """
@@ -31,7 +34,7 @@ class block:
         **Parameters**
 
             other: *block*
-                The block being compared to the base block
+                The block being compared to the base block.
 
         **Returns**
 
@@ -52,12 +55,12 @@ class block:
         **Parameters**
 
             x: *int or float*
-                The input value to the function
+                The input value to the function.
 
         **Returns**
 
             value: *int or float*
-                The value of the function inputed at x
+                The value of the function inputed at x.
         """
         
         p_slope = abs(L.slope(self.p))
@@ -70,24 +73,26 @@ class block:
     def lazor_interaction(self, L, pc):
         """
         Function determines what lazors are formed from a lazor
-        interacting with a block
+        interacting with a block.
 
         **Parameters**
 
             L: *lazor*
-                The lazor that is being looked at
+                The lazor that is being looked at.
             pc: *list*
-                The position of the collision
+                The position of the collision.
 
         **Returns**
 
             L: *lazor*
-                The original lazor with an ending point
+                The original lazor with an ending point.
             Ls: *list*
-                List of lazors that are created from collision
+                List of lazors that are created from collision.
         """
-        
-        if self.t == 'A': #reflect
+        if L.pi == pc:
+            L.pf = pc
+            return L, []
+        elif self.t == 'A': #reflect
             L.pf = pc #point of contact
             return L, [self.reflection(L, pc)]
         elif self.t == 'B': #opaque
@@ -108,19 +113,19 @@ class lazor:
         
     def __init__(self, inital_p, direction):
         """
-        Intrinsic attributes of the lazor
+        Intrinsic attributes of the lazor.
 
         **Parameters**
 
             inital_p: *list*
-                The starting position of the lazor
+                The starting position of the lazor.
             direction: *list*
-                The slope of the lazor
+                The slope of the lazor.
 
         **Returns**
 
             value: *int or float*
-                The value of the function inputed at x
+                The value of the function inputed at x.
         """
         
         self.pi = [int(inital_p[0]), int(inital_p[1])]
@@ -129,12 +134,12 @@ class lazor:
 
     def __eq__(self,other):
         """
-        Describes the equality of lazors to each other
+        Describes the equality of lazors to each other.
 
         **Parameters**
 
             other: *lazor*
-                The opposing lazor being compared
+                The opposing lazor being compared.
 
         **Returns**
 
@@ -155,13 +160,13 @@ class lazor:
 
             pc: *list*
                 Location of the base lazor that will be
-                used to define this new lazor
+                used to define this new lazor.
 
         **Returns**
 
             L: *lazor*
                 The new lazor that is created from a refracting
-                block
+                block.
         """
         
         new_pi = [pc[0] + self.v[0], pc[1] + self.v[1]]
@@ -182,7 +187,7 @@ class lazor:
         **Returns**
 
             value: *int or float*
-                The value of the slope
+                The value of the slope.
         """
         
         if (p[0] - self.pi[0]) == 0:
@@ -204,12 +209,13 @@ class lazor_game:
         **Parameters**
 
             board_file: *str*
-                The name of the level file that will be solved
+                The name of the level file that will be solved.
         """
         
-        self.block_list = []
-        self.lazor_list = []
+        self.b_list = []
+        self.l_list = []
         self.goals = 0
+        self.A = self.B = self.C = 0 #number of type of blocks
         self.read_board_file(board_file)
 
     #reads input board file and translate it into code
@@ -221,7 +227,7 @@ class lazor_game:
         **Parameters**
 
             board_file: *str*
-                The filename of the input board file
+                The filename of the input board file.
         """
         
         if not board_file.endswith('.bff'):
@@ -238,20 +244,23 @@ class lazor_game:
                     raw_grid.append(line.split())
 
                 elif line[0] == 'A': #reflect
+                    self.A = int(line[2])
                     for i in range(int(line[2])):
-                        self.block_list.append(block('A'))
+                        self.b_list.append(block('A'))
 
                 elif line[0] == 'B': #opaque
+                    self.B = int(line[2])
                     for i in range(int(line[2])):
-                        self.block_list.append(block('B'))
+                        self.b_list.append(block('B'))
 
                 elif line[0] == 'C': #refract
+                    self.C = int(line[2])
                     for i in range(int(line[2])):
-                        self.block_list.append(block('C'))
+                        self.b_list.append(block('C'))
 
                 elif line[0] == 'L': #lazor
                     L, x, y, vx, vy = line.split()
-                    self.lazor_list.append(lazor([x, y], [vx, vy]))
+                    self.l_list.append(lazor([x, y], [vx, vy]))
 
                 elif line[0] == 'P': #goals
                     goals.append([int(line[2]),int(line[4])])
@@ -271,9 +280,9 @@ class lazor_game:
 
             raw_grid: *list*
                 Nested list of how grid looks in the orginal
-                format
+                format.
             goals: *list*
-                List of the positions of the goals
+                List of the positions of the goals.
         """
         
         self.grid = [[0]*(2*len(raw_grid[0])+1) for i in range(2*len(raw_grid)+1)]
@@ -284,22 +293,15 @@ class lazor_game:
                 if raw_grid[i][j] == "o":
                     self.grid[x][y] = 1 #possible center of block
                 elif raw_grid[i][j] == "x":
-                    continue
+                    self.grid[x][y] = 7 #blocks cannot be here
                 else:
-                    self.grid[x][y] = block(raw_grid[i][j])
-                    self.block_place(self.grid[x][y], [y, x])
+                    b = block(raw_grid[i][j])
+                    b.fixed = True
+                    self.grid[x][y] = b
+                    self.block_place(self.grid, self.grid[x][y], [y, x])
 
         for y, x in goals:
             self.grid[x][y] = 3
-
-    def display(self):
-        """
-        Displays the grid of the level.
-        """
-        
-        print('Grid: ')
-        for i in self.grid:
-            print(i)
 
     def out_bounds(self, x, y):
         """
@@ -308,20 +310,20 @@ class lazor_game:
         **Parameters**
 
             x: *int or float*
-                The x position
+                The x position.
             y: **
-                The y position
+                The y position.
 
         **Returns**
 
             value: *bool*
                 The boolean value of if position is outside
-                the grid
+                the grid.
         """
         
         return x < 0 or x >= len(self.grid) or y >= len(self.grid[0]) or y < 0
 
-    def determine_block(self, p, L):
+    def determine_block(self, grid, p, L):
         """
         Determines what block the lasor might be reflecting off
         of.
@@ -329,17 +331,17 @@ class lazor_game:
         **Parameters**
 
             p: *list*
-                Position of the lazor at its current step
+                Position of the lazor at its current step.
             L: *lazor*
-                The lazor that is being looked at
+                The lazor that is being looked at.
 
         **Returns**
 
             value: *bool*
                 Boolean value that determines if the lazor
-                is reflecting off a block
+                is reflecting off a block.
             b: *block*
-                Returns the block that is being reflected
+                Returns the block that is being reflected.
         """
         
         y1, x1 = p
@@ -353,11 +355,11 @@ class lazor_game:
             i1, j1 = ps1[i]
             i2, j2 = ps2[i]
             if not self.out_bounds(i1, j1):
-                if type(self.grid[i1][j1]) == block:
-                    b1.append(self.grid[i1][j1])
+                if type(grid[i1][j1]) == block:
+                    b1.append(grid[i1][j1])
             if not self.out_bounds(i2, j2):
-                if type(self.grid[i2][j2]) == block:
-                    b2.append(self.grid[i2][j2])
+                if type(grid[i2][j2]) == block:
+                    b2.append(grid[i2][j2])
 
         #determines block by finding the common block
         for i in b1:
@@ -370,7 +372,7 @@ class lazor_game:
         elif len(b) == 1:
             return True, b[0]
 
-    def push_lazors(self, Ls):
+    def push_lazors(self, grid, Ls):
         """
         Determines how the lazors' trajectory will
         change with the current position of the
@@ -379,7 +381,7 @@ class lazor_game:
         **Parameters**
 
             Ls: *list*
-                A list of the lazors in their current positions
+                A list of the lazors in their current positions.
 
         **Returns**
 
@@ -395,13 +397,13 @@ class lazor_game:
             done = False
             collision = [2,4,6]
             while not done: #push lazors to end point
-                t_value, b = self.determine_block([y, x], L)
-                grid_value = self.grid[x][y]
+                t_value, b = self.determine_block(grid, [y, x], L)
+                grid_value = grid[x][y]
 
                 #collision is occuring
                 if grid_value in collision and t_value:
                     if grid_value == 4:
-                        self.grid[x][y] = 6
+                        grid[x][y] = 6
                     L, hit = b.lazor_interaction(L, [y, x])
                     Ls.remove(L)
                     done = True
@@ -410,13 +412,13 @@ class lazor_game:
                 else:
                     #lazor current step is pushed forward
                     if grid_value == 3: #passes goal
-                        self.grid[x][y] = 5
+                        grid[x][y] = 5
                     x, y = x + L.v[1], y + L.v[0]
                     if self.out_bounds(x, y): #checks for out of bound
                         L.pf = [y - L.v[0], x - L.v[1]]
                         done = True
                         Ls.remove(L)
-        return self.check_win(self.grid)
+        return self.check_win(grid)
 
     def check_win(self, grid):
         """
@@ -437,22 +439,64 @@ class lazor_game:
         """
         
         win = 0
+        b_list = []
         for row in grid:
             for value in row:
                 if value == 5 or value == 6: #means lazor passes through
                     win += 1
+                elif type(value) == block:#collecting the blocks
+                    b_list.append(value)
+
         if win == self.goals:
-            for b in self.block_list:
-                print('Winner! You won!')
-                print('Place Block %s on tile [%i, %i]' % (b.t, (b.p[0]-1)/2, (b.p[1]-1)/2))
+            raw_grid = self.grid_game_form(grid)
+            print('You win!')
+            with open('solutions.txt', 'w') as sol:
+                for b in b_list:
+                    x = int((b.p[1] - 1) / 2)
+                    y = int((b.p[0] - 1) / 2)
+                    self.raw_grid[x][y] = b.t
+
+                sol.write('Congratulations! You won! \n')
+                sol.write('\n')
+                for row in raw_grid:
+                    sol.write('%s \n' % row)
+                sol.close()
             return True
         else:
-            print('Loser! You are a loser!')
             return False
 
+    def grid_game_form(self, grid):
+        """
+        Converts a grid into its game form which is the form
+        located in a bff file.
+
+        **Parameters**
+
+            grid: *list*
+                A nested list that describes how the grid of the
+                game looks like for this current iteration.
+
+        **Returns**
+
+            raw_grid: *list*
+                A nested list that describes the game verision of
+                the current iteration of the grid.
+        """
+
+        raw_grid = [[0]*((len(grid)-1)/2) for i in range((len(grid)-1)/2)]
+        for i in range(len(grid)):
+            for j in range(len(grid)):
+                x, y = (i-1)/2, (j-1)/2
+                if type(grid[i][j]) == block:
+                    raw_grid[x][y] = grid[i][j].t
+                elif grid[i][j] == 1:
+                    raw_grid[x][y] = 'o'
+                elif grid[i][j] == 7:
+                    raw_grid[x][y] = 'x'
+        return raw_grid
 
     #function to place block
-    def block_place(self, b, p):
+    def block_place(self, grid, b, p):
         """
         The function assigns a block to a location on the grid
         so that it can be seen how it impacts the lazor's 
@@ -461,39 +505,100 @@ class lazor_game:
         **Parameters**
 
             b: *block*
-                The block being given a position
+                The block being given a position.
             p: *list*
-                The position of the block
+                The position of the block.
         """
         
         y, x = b.p = p
         ps = [[x + 1,y], [x - 1, y], [x, y + 1], [x, y - 1]]
-        self.grid[x][y] = b
+        grid[x][y] = b
         for x, y in ps: #places little marker near block
-            if self.grid[x][y] == 3:
-                self.grid[x][y] = 4
+            if grid[x][y] == 3:
+                grid[x][y] = 4
             else:
-                self.grid[x][y] = 2
+                grid[x][y] = 2
+
+    def frame(self, pos):
+        """
+        Generates a grid based on a specific set of block placements
+        that are listed in the list pos.
+
+        **Parameters**
+
+            pos: *list*
+                Holds an ordered list of the positions that the blocks
+                need to be placed in.
+
+        **Returns**
+
+            grid: *list*
+                A nested list that describes an iteration that has a 
+                unique block configuration of the level.
+        """
+
+        grid = dc(self.grid)
+        b_list = dc(self.b_list)
+        for i, b in enumerate(b_list):
+            self.block_place(grid, b, pos[i])
+        return grid
+
+    def generate_positions(self): #NEED TO DO THIS
+        """
+        Generates a combination of block positions to be used to 
+        create grids.
+
+        **Returns**
+
+            pos: *list*
+                A list of all possible and unique block positions.
+        """
+
+        p_list = []
+        for i, row in enumerate(self.grid):
+            for j, value in enumerate(row):
+                if value == 1:
+                    p_list.append([j, i])
+        pos = list(itertools.permutations(p_list, len(self.b_list)))
+        return pos
+
+    def generate_grids(self):
+        """
+        Creates a list of grids which will be tested to see if
+        their configuration holds the solution.
+
+        **Returns**
+
+            grids: *list*
+                A list of grids, where a grid is a nested list with
+                a specific configuration of block placement.
+        """
+
+        grids = []
+        pos = self.generate_positions()
+        for i, p in enumerate(pos):
+            grids.append(self.frame(p))
+        return grids
 
     def lazor_solver(self):
         """
-        This function utilizes an algorithm to solve the lazor
-        level that was inputed into the lazor_game class.
-
-        **Returns** (need to figure this out)
-
-            value: *int or float*
-                ffff
+        This function solves a level inputted into the lazor game
+        class by creating a series of possible block combinations
+        and testing to see which configuration wins the level.
         """
-        
-        B1, B2, B3 = self.block_list
-        self.block_place(B1, [1,5])
-        self.block_place(B2, [1,3])
-        self.block_place(B3, [3,5])
-        return self.push_lazors(self.lazor_list)
+
+        grids = self.generate_grids()
+        done = False
+        grid = grids[18]
+        print(self.push_lazors(grids[18], dc(self.l_list)))
+        if 
+        #for grid in grids:
+        #    if self.push_lazors(grid, dc(self.l_list)):
+        #        done = True
+        #        break
+        if not done:
+            print('Failed Game')
 
 if __name__ == "__main__":
-    a = lazor_game('dark_1')
-    print(a.lazor_solver())
-    for i in a.grid:
-        print(i)
+    a = lazor_game('tiny_5')
+    a.lazor_solver()
