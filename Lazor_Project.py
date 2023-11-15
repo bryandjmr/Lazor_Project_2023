@@ -89,10 +89,7 @@ class block:
             Ls: *list*
                 List of lazors that are created from collision.
         """
-        if L.pi == pc:
-            L.pf = pc
-            return L, []
-        elif self.t == 'A': #reflect
+        if self.t == 'A': #reflect
             L.pf = pc #point of contact
             return L, [self.reflection(L, pc)]
         elif self.t == 'B': #opaque
@@ -409,6 +406,10 @@ class lazor_game:
                     done = True
                     for i in hit:
                         Ls.append(i)
+                elif grid_value == 8:
+                    L.pf = [y, x]
+                    Ls.remove(L)
+                    done = True
                 else:
                     #lazor current step is pushed forward
                     if grid_value == 3: #passes goal
@@ -454,7 +455,7 @@ class lazor_game:
                 for b in b_list:
                     x = int((b.p[1] - 1) / 2)
                     y = int((b.p[0] - 1) / 2)
-                    self.raw_grid[x][y] = b.t
+                    raw_grid[x][y] = b.t
 
                 sol.write('Congratulations! You won! \n')
                 sol.write('\n')
@@ -483,10 +484,10 @@ class lazor_game:
                 the current iteration of the grid.
         """
 
-        raw_grid = [[0]*((len(grid)-1)/2) for i in range((len(grid)-1)/2)]
+        raw_grid = [[0]*(int((len(grid)-1)/2)) for i in range(int((len(grid)-1)/2))]
         for i in range(len(grid)):
             for j in range(len(grid)):
-                x, y = (i-1)/2, (j-1)/2
+                x, y = int((i-1)/2), int((j-1)/2)
                 if type(grid[i][j]) == block:
                     raw_grid[x][y] = grid[i][j].t
                 elif grid[i][j] == 1:
@@ -516,6 +517,8 @@ class lazor_game:
         for x, y in ps: #places little marker near block
             if grid[x][y] == 3:
                 grid[x][y] = 4
+            elif grid[x][y] == 2 or grid[x][y] == 4:
+                grid[x][y] = 8
             else:
                 grid[x][y] = 2
 
@@ -550,8 +553,8 @@ class lazor_game:
 
         **Returns**
 
-            pos: *list*
-                A list of all possible and unique block positions.
+            pos: *tuple*
+                A tuple of all possible and unique block positions.
         """
 
         p_list = []
@@ -588,17 +591,15 @@ class lazor_game:
         """
 
         grids = self.generate_grids()
+        print(len(grids))
         done = False
-        grid = grids[18]
-        print(self.push_lazors(grids[18], dc(self.l_list)))
-        if 
-        #for grid in grids:
-        #    if self.push_lazors(grid, dc(self.l_list)):
-        #        done = True
-        #        break
+        for grid in grids:
+            if self.push_lazors(grid, dc(self.l_list)):
+                done = True
+                break
         if not done:
             print('Failed Game')
 
 if __name__ == "__main__":
-    a = lazor_game('tiny_5')
+    a = lazor_game('numbered_6')
     a.lazor_solver()
