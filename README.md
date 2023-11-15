@@ -11,11 +11,12 @@ grid so you can see where they are supposed to go. For convenience, I have writt
 an example code below that can be copied, along with what solutions.txt will look 
 like. Have fun playing and winning!
 
-Example Code:
+<b>Example Code: </b>
+
 a = lazor_game('yarn_5')
 a.lazor_solver()
 
-Output of solutions.txt:
+<b>Output of solutions.txt: </b>
 
 Congratulations! You won! 
 
@@ -26,7 +27,7 @@ Congratulations! You won!
 ['A', 'o', 'x', 'x', 'A'] 
 ['B', 'A', 'x', 'A', 'o'] 
 
-Error in the Code:
+<b>Error in the Code:</b>
 
 Our goal was to create a unique number of configurations for the placements of our blocks
 in the grid. However, we greatly struggled with that so we tried to use the package
