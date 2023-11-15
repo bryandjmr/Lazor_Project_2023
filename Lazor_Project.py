@@ -561,7 +561,6 @@ class lazor_game:
             for j, value in enumerate(row):
                 if value == 1:
                     p_list.append([j, i])
-        permutation = [p_list for i in self.b_list]
 
         pos = list(itertools.combinations(p_list, len(self.b_list)))
         return pos
@@ -584,5 +583,5 @@ class lazor_game:
             print('Failed Game')
 
 if __name__ == "__main__":
-    a = lazor_game('yarn_5')
+    a = lazor_game('mad_4')
     a.lazor_solver()
