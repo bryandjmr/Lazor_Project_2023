@@ -191,9 +191,6 @@ class lazor:
             return float('inf')
         return (p[1] - self.pi[1]) / (p[0] - self.pi[0])
 
-class
-
-
 class lazor_game:
     """
     This class reads a board file of a level and then is able to solve
@@ -576,6 +573,7 @@ class lazor_game:
 
         done = False
         pos = self.generate_positions()
+        print('reeee')
         for p in pos:
             grid = self.frame(p)
             if self.push_lazors(grid, dc(self.l_list)):
