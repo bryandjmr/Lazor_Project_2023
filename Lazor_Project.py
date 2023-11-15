@@ -1,220 +1,588 @@
-#maybe create subclasses that react to the lazor differently (option 1)
-#or build in that into the block class (option 2)
-class Block:
-    def __init__(self, block_type, position, fixed=False):
-        self.block_type = block_type
-        self.position = position
-        self.fixed = fixed
-    def interact_with_laser(self, laser):
-        if self.block_type == 'reflect':
-            laser.reflect()  # Reflect method needs to be defined in Laser class
-            return [laser], []  # Only one laser continues, no new laser created.
-        elif self.block_type == 'opaque':
-            return [], []  # Laser stops, no lasers continue.
-        elif self.block_type == 'refract':
-            through_laser = Laser(laser.position, laser.direction)
-            reflect_laser = Laser(laser.position, self._reflect_direction(laser.direction))
-            return [through_laser], [reflect_laser]
-        return [laser], []
-    def _reflect_direction(self, direction):
-        vx, vy = direction
-        return (-vy, vx)  # For a 90-degree reflection
-class Laser:
-    def __init__(self, position, direction):
-        self.position = position  # A tuple (x, y)
-        self.direction = direction  # A tuple (vx, vy) indicating direction
+"""
+Lazor Project
+"""
 
-    def move(self):
-        """Moves the laser one step in its current direction."""
-        self.position = (self.position[0] + self.direction[0],
-                         self.position[1] + self.direction[1])
-    def reflect(self):
-        """Reflects the laser's direction by 90 degrees, simulating a 45-degree
-        angle of incidence and reflection with respect to the block's face."""
-        vx, vy = self.direction
-        # For a 45-degree block, the reflection swaps the x and y components of the velocity,
-        # and reverses the sign of one of them. Which one depends on the block's orientation,
-        # but since we don't have that information, we'll assume the simplest case:
-        self.direction = (vy, -vx)
-#The function opens the .bff file, iterates over each line, and depending on the content
-#it populates different variables that hold the grid, the blocks, the lasers, and the points
-#Need to replace 'path_to_your_file.bff' with the actual path to the file
-def parse_bff(filename):
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-    # Initializing lists to hold various elements
-    grid = []
-    fixed_blocks = []
-    movable_blocks = []
-    lasers = []
-    points = []
-    # Flags to know when to start parsing which part
-    parsing_grid = False
-    parsing_blocks = False
-    parsing_lasers = False
-    parsing_points = False
-    for line in lines:
-        line = line.strip()
-        if line == 'GRID START':
-            parsing_grid = True
-        elif line == 'GRID STOP':
-            parsing_grid = False
-            parsing_blocks = True  # Assuming blocks are listed right after the grid
-        elif parsing_grid and line:
-            grid.append(list(line))
-        elif parsing_blocks:
-            if line.startswith(('A', 'B', 'C')):  # Assuming 'A', 'B', 'C' are blocks
-                block_type, quantity = line.split()
-                for _ in range(int(quantity)):
-                    movable_blocks.append(Block(block_type, None))  # None for position since it's movable
-            elif line.startswith('L'):
-                parsing_blocks = False
-                parsing_lasers = True
-            elif line.startswith('P'):
-                parsing_blocks = False
-                parsing_points = True
-        elif parsing_lasers:
-            if line:  # Assuming lasers lines are not empty
-                x, y, dx, dy = map(int, line.split())
-                lasers.append((x, y, dx, dy))
+from copy import deepcopy as dc #used to create copied list
+import itertools
+
+class block:
+    """
+    Class object that captures how blocks in the Lazor game
+    relate to each other (equality comparison) and how different
+    blocks interact with the lazor.
+    """
+
+    def __init__(self, type):
+        """
+        Defines the instrinic attributes of the block such as 
+        type of block and position of the block.
+        **Parameters**
+
+            type: *int or float*
+                The input value to the function.
+        """
+
+        self.t = type
+        self.p = None
+        self.fixed = False
+
+    def __eq__(self, other):
+        """
+        Defines how to relate blocks using its position by an 
+        equality comparison.
+
+        **Parameters**
+
+            other: *block*
+                The block being compared to the base block.
+
+        **Returns**
+
+            value: *bool*
+                The boolean value of if the two blocks are 
+                the same.
+        """
+
+        if type(other) == block:
+            return self.p == other.p and self.t == other.t
+        return False
+
+    def reflection(self, L, pc):
+        """
+        The reflection object determines how a lazor will
+        change after reflecting on a block. 
+
+        **Parameters**
+
+            x: *int or float*
+                The input value to the function.
+
+        **Returns**
+
+            value: *int or float*
+                The value of the function inputed at x.
+        """
+        
+        p_slope = abs(L.slope(self.p))
+        L_slope = abs(L.v[1]/L.v[0])
+        if L_slope < p_slope:
+            return lazor(pc, [L.v[0], -L.v[1]])
+        else:
+            return lazor(pc, [-L.v[0], L.v[1]])
+
+    def lazor_interaction(self, L, pc):
+        """
+        Function determines what lazors are formed from a lazor
+        interacting with a block.
+
+        **Parameters**
+
+            L: *lazor*
+                The lazor that is being looked at.
+            pc: *list*
+                The position of the collision.
+
+        **Returns**
+
+            L: *lazor*
+                The original lazor with an ending point.
+            Ls: *list*
+                List of lazors that are created from collision.
+        """
+        if self.t == 'A': #reflect
+            L.pf = pc #point of contact
+            return L, [self.reflection(L, pc)]
+        elif self.t == 'B': #opaque
+            L.pf = pc #stops here
+            return L, []
+        elif self.t == 'C': #refract
+            L.pf = pc #goes past this block to find new stop point
+            return L, [self.reflection(L, pc), L.refract(pc)]
+
+
+class lazor:
+    """
+    Class describes how a lazor relate to other lazors,
+    as well as helper function that help determine the 
+    slope and a new lazor that would form from a 
+    refraction.
+    """
+        
+    def __init__(self, inital_p, direction):
+        """
+        Intrinsic attributes of the lazor.
+
+        **Parameters**
+
+            inital_p: *list*
+                The starting position of the lazor.
+            direction: *list*
+                The slope of the lazor.
+
+        **Returns**
+
+            value: *int or float*
+                The value of the function inputed at x.
+        """
+        
+        self.pi = [int(inital_p[0]), int(inital_p[1])]
+        self.v = [int(direction[0]), int(direction[1])]
+        self.pf = None
+
+    def __eq__(self,other):
+        """
+        Describes the equality of lazors to each other.
+
+        **Parameters**
+
+            other: *lazor*
+                The opposing lazor being compared.
+
+        **Returns**
+
+            value: *bool*
+                Boolean value that determines if lazors are
+                the same.
+        """
+        
+        return self.pi == other.pi and self.v == other.v
+
+    #really just for refract block to define a new lazor
+    def refract(self, pc):
+        """
+        Describes how a new lazor is formed from
+        refracting.
+
+        **Parameters**
+
+            pc: *list*
+                Location of the base lazor that will be
+                used to define this new lazor.
+
+        **Returns**
+
+            L: *lazor*
+                The new lazor that is created from a refracting
+                block.
+        """
+        
+        new_pi = [pc[0] + self.v[0], pc[1] + self.v[1]]
+        return lazor(new_pi, self.v)
+
+    def slope(self, p):
+        """
+        Returns the slope of a point assuming the point
+        describes the vertical and horizontal component 
+        of the slope.
+
+        **Parameters**
+
+            p: *list*
+                A list of the vertical and horizontal 
+                components of the slope.
+
+        **Returns**
+
+            value: *int or float*
+                The value of the slope.
+        """
+        
+        if (p[0] - self.pi[0]) == 0:
+            return float('inf')
+        return (p[1] - self.pi[1]) / (p[0] - self.pi[0])
+
+class lazor_game:
+    """
+    This class reads a board file of a level and then is able to solve
+    for the correct placement of the blocks.
+    """
+        
+    def __init__(self,board_file):
+        """
+        Define the intrinic attributes of the lazor_game
+        class.
+
+        **Parameters**
+
+            board_file: *str*
+                The name of the level file that will be solved.
+        """
+        
+        self.b_list = []
+        self.l_list = []
+        self.goals = 0
+        self.A = self.B = self.C = 0 #number of type of blocks
+        self.read_board_file(board_file)
+
+    #reads input board file and translate it into code
+    def read_board_file(self, board_file):
+        """
+        Reads bff file that describes lazor game and puts it into
+        a readable format.
+
+        **Parameters**
+
+            board_file: *str*
+                The filename of the input board file.
+        """
+        
+        if not board_file.endswith('.bff'):
+            board_file += '.bff'
+
+        read_grid = False
+        raw_grid, goals = [], []
+        with open(board_file) as board:
+            for line in board:        
+                if line[0] == 'G': #reading grid
+                    read_grid = (line[5:10] == 'START')
+
+                elif read_grid: #adding grid
+                    raw_grid.append(line.split())
+
+                elif line[0] == 'A': #reflect
+                    self.A = int(line[2])
+                    for i in range(int(line[2])):
+                        self.b_list.append(block('A'))
+
+                elif line[0] == 'B': #opaque
+                    self.B = int(line[2])
+                    for i in range(int(line[2])):
+                        self.b_list.append(block('B'))
+
+                elif line[0] == 'C': #refract
+                    self.C = int(line[2])
+                    for i in range(int(line[2])):
+                        self.b_list.append(block('C'))
+
+                elif line[0] == 'L': #lazor
+                    L, x, y, vx, vy = line.split()
+                    self.l_list.append(lazor([x, y], [vx, vy]))
+
+                elif line[0] == 'P': #goals
+                    goals.append([int(line[2]),int(line[4])])
+        board.close()
+
+        self.goals = len(goals)
+        self.create_grid(raw_grid, goals)
+
+
+    #creates a proper grid with correct notation
+    def create_grid(self, raw_grid, goals):
+        """
+        Creates the grid of the level in a fashion that will
+        make solving the level easier.
+
+        **Parameters**
+
+            raw_grid: *list*
+                Nested list of how grid looks in the orginal
+                format.
+            goals: *list*
+                List of the positions of the goals.
+        """
+        
+        self.grid = [[0]*(2*len(raw_grid[0])+1) for i in range(2*len(raw_grid)+1)]
+        
+        for i in range(len(raw_grid)):
+            for j in range(len(raw_grid[i])):
+                x, y = 2 * i + 1, 2 * j + 1
+                if raw_grid[i][j] == "o":
+                    self.grid[x][y] = 1 #possible center of block
+                elif raw_grid[i][j] == "x":
+                    self.grid[x][y] = 7 #blocks cannot be here
+                else:
+                    b = block(raw_grid[i][j])
+                    b.fixed = True
+                    self.grid[x][y] = b
+                    self.block_place(self.grid, self.grid[x][y], [y, x])
+
+        for y, x in goals:
+            self.grid[x][y] = 3
+
+    def out_bounds(self, x, y):
+        """
+        Determines if position is outside of grid.
+
+        **Parameters**
+
+            x: *int or float*
+                The x position.
+            y: **
+                The y position.
+
+        **Returns**
+
+            value: *bool*
+                The boolean value of if position is outside
+                the grid.
+        """
+        
+        return x < 0 or x >= len(self.grid) or y >= len(self.grid[0]) or y < 0
+
+    def determine_block(self, grid, p, L):
+        """
+        Determines what block the lasor might be reflecting off
+        of.
+
+        **Parameters**
+
+            p: *list*
+                Position of the lazor at its current step.
+            L: *lazor*
+                The lazor that is being looked at.
+
+        **Returns**
+
+            value: *bool*
+                Boolean value that determines if the lazor
+                is reflecting off a block.
+            b: *block*
+                Returns the block that is being reflected.
+        """
+        
+        y1, x1 = p
+        x2, y2 = x1 + L.v[1], y1 + L.v[0]
+        b, b1, b2 = [], [], [] #holds nearby blocks
+
+        #using the next step of the position to determine what block it hits
+        ps1 = [[x1 + 1,y1], [x1 - 1, y1], [x1, y1 + 1], [x1, y1 - 1]]
+        ps2 = [[x2 + 1,y2], [x2 - 1, y2], [x2, y2 + 1], [x2, y2 - 1]]
+        for i in range(4):
+            i1, j1 = ps1[i]
+            i2, j2 = ps2[i]
+            if not self.out_bounds(i1, j1):
+                if type(grid[i1][j1]) == block:
+                    b1.append(grid[i1][j1])
+            if not self.out_bounds(i2, j2):
+                if type(grid[i2][j2]) == block:
+                    b2.append(grid[i2][j2])
+
+        #determines block by finding the common block
+        for i in b1:
+            for j in b2:
+                if i == j:
+                    b.append(i)
+                    
+        if len(b) < 1: #no block collision
+            return False, None
+        elif len(b) == 1:
+            return True, b[0]
+
+    def push_lazors(self, grid, Ls):
+        """
+        Determines how the lazors' trajectory will
+        change with the current position of the
+        blocks.
+
+        **Parameters**
+
+            Ls: *list*
+                A list of the lazors in their current positions.
+
+        **Returns**
+
+            value: *bool*
+                Returns boolean value of if the game is over
+                or not.
+        """
+        
+        #goes until all lazors find their end point
+        while len(Ls) != 0: 
+            L = Ls[0]
+            y, x = L.pi
+            done = False
+            collision = [2,4,6]
+            while not done: #push lazors to end point
+                t_value, b = self.determine_block(grid, [y, x], L)
+                grid_value = grid[x][y]
+
+                #collision is occuring
+                if grid_value in collision and t_value:
+                    if grid_value == 4:
+                        grid[x][y] = 6
+                    L, hit = b.lazor_interaction(L, [y, x])
+                    Ls.remove(L)
+                    done = True
+                    for i in hit:
+                        Ls.append(i)
+                elif grid_value == 8:
+                    L.pf = [y, x]
+                    Ls.remove(L)
+                    done = True
+                else:
+                    #lazor current step is pushed forward
+                    if grid_value == 3: #passes goal
+                        grid[x][y] = 5
+                    x, y = x + L.v[1], y + L.v[0]
+                    if self.out_bounds(x, y): #checks for out of bound
+                        L.pf = [y - L.v[0], x - L.v[1]]
+                        done = True
+                        Ls.remove(L)
+        return self.check_win(grid)
+
+    def check_win(self, grid):
+        """
+        Determines if the game is won by seeing if the lazor
+        hits all the goals.
+
+        **Parameters**
+
+            grid: *list*
+                A nested list that describes how the grid of the
+                game looks like for this current iteration.
+
+        **Returns**
+
+            value: *bool*
+                Returns True if game is won and False if the 
+                game is lost.
+        """
+        
+        win = 0
+        b_list = []
+        for row in grid:
+            for value in row:
+                if value == 5 or value == 6: #means lazor passes through
+                    win += 1
+                elif type(value) == block:#collecting the blocks
+                    b_list.append(value)
+
+        if win == self.goals:
+            raw_grid = self.grid_game_form(grid)
+            print('You win!')
+            with open('solutions.txt', 'w') as sol:
+                for b in b_list:
+                    x = int((b.p[1] - 1) / 2)
+                    y = int((b.p[0] - 1) / 2)
+                    raw_grid[x][y] = b.t
+
+                sol.write('Congratulations! You won! \n')
+                sol.write('\n')
+                for row in raw_grid:
+                    sol.write('%s \n' % row)
+                sol.close()
+            return True
+        else:
+            return False
+
+    def grid_game_form(self, grid):
+        """
+        Converts a grid into its game form which is the form
+        located in a bff file.
+
+        **Parameters**
+
+            grid: *list*
+                A nested list that describes how the grid of the
+                game looks like for this current iteration.
+
+        **Returns**
+
+            raw_grid: *list*
+                A nested list that describes the game verision of
+                the current iteration of the grid.
+        """
+
+        raw_grid = [[0]*(int((len(grid[0])-1)/2)) for i in range(int((len(grid)-1)/2))]
+        for i in range(len(grid)):
+            for j in range(len(grid[i])):
+                x, y = int((i-1)/2), int((j-1)/2)
+                if type(grid[i][j]) == block:
+                    raw_grid[x][y] = grid[i][j].t
+                elif grid[i][j] == 1:
+                    raw_grid[x][y] = 'o'
+                elif grid[i][j] == 7:
+                    raw_grid[x][y] = 'x'
+        return raw_grid
+
+    #function to place block
+    def block_place(self, grid, b, p):
+        """
+        The function assigns a block to a location on the grid
+        so that it can be seen how it impacts the lazor's 
+        trajectory.
+
+        **Parameters**
+
+            b: *block*
+                The block being given a position.
+            p: *list*
+                The position of the block.
+        """
+        
+        y, x = b.p = p
+        ps = [[x + 1,y], [x - 1, y], [x, y + 1], [x, y - 1]]
+        grid[x][y] = b
+        for x, y in ps: #places little marker near block
+            if grid[x][y] == 3:
+                grid[x][y] = 4
+            elif grid[x][y] == 2 or grid[x][y] == 4:
+                grid[x][y] = 8
             else:
-                parsing_lasers = False
-        elif parsing_points:
-            if line:  # Assuming points lines are not empty
-                points.append(tuple(map(int, line.split())))
-    # Convert grid symbols to Block objects for fixed blocks
-    for y, row in enumerate(grid):
-        for x, cell in enumerate(row):
-            if cell in 'ABC':
-                fixed_blocks.append(Block(cell, (x, y), True))
-                grid[y][x] = 'o'  # Optional: Replace the block symbols with something else like 'o'
-    return grid, movable_blocks, fixed_blocks, lasers, points
-def find_fixed_block_positions(block_type, grid):
-    fixed_blocks = []
-    for y, row in enumerate(grid):
-        for x, cell in enumerate(row):
-            if cell == block_type:
-                fixed_blocks.append((block_type, (x, y)))
-    return fixed_blocks
-# Example usage:
-grid, movable_blocks,fixed_blocks, lasers, points, *_ = parse_bff('C:\\Users\\victh\\PycharmProjects\\EN.540SoftwareCarpentry\\Lazor_Project_2023\\tiny_5.bff')
-print("Grid:")
-for row in grid:
-    print(row)
-print("Blocks:", movable_blocks, fixed_blocks)
-print("Lasers:", lasers)
-print("Points:", points)
-def simulate_lasers(grid, config, lasers):
-    """This function will take the current grid configuration and simulate the path
-    of all lasers according to the block interactions."""
-    laser_paths = []
-    for laser_info in lasers:
-        # Create a Laser object from the laser_info tuple
-        laser = Laser(position=(laser_info[0], laser_info[1]), direction=(laser_info[2], laser_info[3]))
-        path = trace_laser_path(grid, laser, config)
-        laser_paths.append(path)
-    return laser_paths
-def trace_laser_path(grid, laser, config):
-    """Trace the path of a single laser given the grid and block configuration."""
-    path = [laser.position]
-    current_position, current_direction = laser.position, laser.direction
-    while True:
-        # Move the laser one step
-        laser.move()
-        next_position = laser.position
-        # Check if next position is outside the grid
-        if not is_position_inside_grid(next_position, grid):
-            break
-        if next_position in config:  # If there's a block at the position
-            block = config[next_position]
-            result = block.interact_with_laser(laser)
-            continuing_lasers, new_lasers = result
-            path.append(next_position)  # Add the interaction point to the path
-            # Handle continuing lasers
-            for lsr in continuing_lasers:
-                path += trace_laser_path(grid, lsr, config)  # Recursively trace the path of the continuing laser
-            # Handle new lasers created by refraction, if any
-            for lsr in new_lasers:
-                path += trace_laser_path(grid, lsr, config)  # Recursively trace the path of the new laser
-            break  # Once a block is encountered, we stop the current laser
-        path.append(next_position)  # If there's no block, just add the position to the path
-    return path
-def get_block_interaction_at_position(position, config):
-    """Return the block at a given position."""
-    return config.get(position)
-def is_position_inside_grid(position, grid):
-    """Check if a given position is inside the boundaries of the grid."""
-    rows = len(grid)
-    cols = len(grid[0]) if rows else 0
-    x, y = position
-    return 0 <= x < cols and 0 <= y < rows
-def check_all_target_points_met(target_points, laser_paths):
-    """ Check if all target points are hit by the lasers."""
-    # Flatten the list of laser paths to a set of points
-    points_hit = set(pt for path in laser_paths for pt in path)
-    return all(point in points_hit for point in target_points)
-# Example usage within the is_solution function
-def is_solution(config, target_points):
-    # Simulate lasers and check if all target_points are intersected
-    laser_paths = simulate_lasers(grid, config, lasers)
-    return check_all_target_points_met(target_points, laser_paths)
-def can_continue(config, movable_blocks):
-    """Determine if the search can continue based on the remaining movable blocks."""
-    # Placeholder logic: can continue if there are movable blocks left
-    return any(block for block in movable_blocks if not block['placed'])
-def generate_next_configs(config, movable_blocks):
-    next_configs = []
-    for block in movable_blocks:
-        if block.position is None:  # Check if the block hasn't been placed
-            for new_pos in get_possible_positions(grid):
-                new_config = place_block(config, block, new_pos)
-                next_configs.append(new_config)
-    return next_configs
-def get_possible_positions(grid):
-    """Return all possible positions where a block could be placed."""
-    # Placeholder logic
-    return [(x, y) for x in range(len(grid[0])) for y in range(len(grid))]
-def place_block(config, block, position):
-    new_config = config.copy()
-    new_block = Block(block.block_type, position, block.fixed)  # Create a new Block with the updated position
-    new_config[position] = new_block
-    return new_config
-def create_initial_configuration(grid, movable_blocks, fixed_blocks):
-    """Create the initial configuration with fixed blocks in place."""
-    config = {}
-    for block in fixed_blocks:
-        config[block.position] = block  # Now storing Block instances
-    for block in movable_blocks:
-        # No need to set 'placed' because it's already part of Block's __init__
-        block.position = None  # Reset position since it's not yet placed
-    return config
+                grid[x][y] = 2
 
-def solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, lasers, target_points, max_depth):
-    def is_solution(config):
-        # Simulate lasers and check if all target_points are intersected
-        paths, target_points_met = simulate_lasers(grid, config, lasers)
-        return all(target_points_met.values())
+    def frame(self, pos):
+        """
+        Generates a grid based on a specific set of block placements
+        that are listed in the list pos.
 
-    def search(config, depth):
-        if depth > max_depth:
-            return None
-        if is_solution(config):
-            return config
-        for next_config in generate_next_configs(config, movable_blocks):
-            result = search(next_config, depth + 1)
-            if result:
-                return result
-        return None
+        **Parameters**
 
-    # Start the search with an initial configuration
-    initial_config = create_initial_configuration(grid, movable_blocks, fixed_blocks)
-    return search(initial_config, 0)
-max_search_depth = 10
-# Example usage:
-grid, movable_blocks, fixed_blocks, lasers, target_points = parse_bff('C:\\Users\\victh\\PycharmProjects\\EN.540SoftwareCarpentry\\Lazor_Project_2023\\tiny_5.bff')
-solution = solve_lazor_puzzle(grid, movable_blocks, fixed_blocks, lasers, target_points, max_search_depth)
-if solution:
-    print("Solution found!")
-    # Code to visualize or output the solution
-else:
-    print("No solution exists.")
+            pos: *list*
+                Holds an ordered list of the positions that the blocks
+                need to be placed in.
+
+        **Returns**
+
+            grid: *list*
+                A nested list that describes an iteration that has a 
+                unique block configuration of the level.
+        """
+
+        grid = dc(self.grid)
+        b_list = dc(self.b_list)
+        for i, b in enumerate(b_list):
+            self.block_place(grid, b, pos[i])
+        return grid
+
+    def generate_positions(self):
+        """
+        Generates a combination of block positions to be used to 
+        create grids.
+
+        **Returns**
+
+            pos: *tuple*
+                A tuple of all possible and unique block positions.
+        """
+
+        p_list = []
+        for i, row in enumerate(self.grid):
+            for j, value in enumerate(row):
+                if value == 1:
+                    p_list.append([j, i])
+        permutation = [p_list for i in self.b_list]
+
+        pos = list(itertools.combinations(p_list, len(self.b_list)))
+        return pos
+
+    def lazor_solver(self):
+        """
+        This function solves a level inputted into the lazor game
+        class by creating a series of possible block combinations
+        and testing to see which configuration wins the level.
+        """
+
+        done = False
+        pos = self.generate_positions()
+        for p in pos:
+            grid = self.frame(p)
+            if self.push_lazors(grid, dc(self.l_list)):
+                done = True
+                break
+        if not done:
+            print('Failed Game')
+
+if __name__ == "__main__":
+    a = lazor_game('yarn_5')
+    a.lazor_solver()
