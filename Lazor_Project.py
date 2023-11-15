@@ -3,6 +3,7 @@ Lazor Project
 """
 
 from copy import deepcopy as dc #used to create copied list
+import itertools
 
 class block:
     """
@@ -214,6 +215,7 @@ class lazor_game:
         self.b_list = []
         self.l_list = []
         self.goals = 0
+        self.A = self.B = self.C = 0 #number of type of blocks
         self.read_board_file(board_file)
 
     #reads input board file and translate it into code
@@ -242,14 +244,17 @@ class lazor_game:
                     raw_grid.append(line.split())
 
                 elif line[0] == 'A': #reflect
+                    self.A = int(line[2])
                     for i in range(int(line[2])):
                         self.b_list.append(block('A'))
 
                 elif line[0] == 'B': #opaque
+                    self.B = int(line[2])
                     for i in range(int(line[2])):
                         self.b_list.append(block('B'))
 
                 elif line[0] == 'C': #refract
+                    self.C = int(line[2])
                     for i in range(int(line[2])):
                         self.b_list.append(block('C'))
 
@@ -444,6 +449,7 @@ class lazor_game:
 
         if win == self.goals:
             raw_grid = self.grid_game_form(grid)
+            print('You win!')
             with open('solutions.txt', 'w') as sol:
                 for b in b_list:
                     x = int((b.p[1] - 1) / 2)
@@ -553,8 +559,7 @@ class lazor_game:
             for j, value in enumerate(row):
                 if value == 1:
                     p_list.append([j, i])
-        pos = None
-        #use self.b_list
+        pos = list(itertools.permutations(p_list, len(self.b_list)))
         return pos
 
     def generate_grids(self):
@@ -571,8 +576,8 @@ class lazor_game:
 
         grids = []
         pos = self.generate_positions()
-        for p in pos:
-            self.grids(self.frame(p))
+        for i, p in enumerate(pos):
+            grids.append(self.frame(p))
         return grids
 
     def lazor_solver(self):
@@ -583,10 +588,16 @@ class lazor_game:
         """
 
         grids = self.generate_grids()
-        for grid in grids:
-            if self.push_lazors(grid, dc(self.t_list)):
-                break
-        print('Algorithm is done')
+        done = False
+        grid = grids[18]
+        print(self.push_lazors(grids[18], dc(self.l_list)))
+        if 
+        #for grid in grids:
+        #    if self.push_lazors(grid, dc(self.l_list)):
+        #        done = True
+        #        break
+        if not done:
+            print('Failed Game')
 
 if __name__ == "__main__":
     a = lazor_game('tiny_5')
