@@ -583,5 +583,5 @@ class lazor_game:
             print('Failed Game')
 
 if __name__ == "__main__":
-    a = lazor_game('mad_4')
+    a = lazor_game('yarn_5')
     a.lazor_solver()
