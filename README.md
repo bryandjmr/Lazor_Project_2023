@@ -25,3 +25,13 @@ Congratulations! You won!
 ['o', 'x', 'A', 'o', 'x'] 
 ['A', 'o', 'x', 'x', 'A'] 
 ['B', 'A', 'x', 'A', 'o'] 
+
+Error in the Code:
+Our goal was to create a unique number of configurations for the placements of our blocks
+in the grid. However, we greatly struggled with that so we tried to use the package
+itertools.combination to create a list of all possible unordered combinations of positions.
+The problem is that the code assumed all the blocks were indistinguishable, so it reduces
+the number of configurations too much for levels with a high number of different types of
+blocks. So the solver can handle very large grids with blocks with blocks that have limited
+block diversity and can solve them quickly, but with opposite conditions, it will immediately
+fail. 
