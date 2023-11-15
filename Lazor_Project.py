@@ -191,6 +191,8 @@ class lazor:
             return float('inf')
         return (p[1] - self.pi[1]) / (p[0] - self.pi[0])
 
+class
+
 
 class lazor_game:
     """
@@ -484,9 +486,9 @@ class lazor_game:
                 the current iteration of the grid.
         """
 
-        raw_grid = [[0]*(int((len(grid)-1)/2)) for i in range(int((len(grid)-1)/2))]
+        raw_grid = [[0]*(int((len(grid[0])-1)/2)) for i in range(int((len(grid)-1)/2))]
         for i in range(len(grid)):
-            for j in range(len(grid)):
+            for j in range(len(grid[i])):
                 x, y = int((i-1)/2), int((j-1)/2)
                 if type(grid[i][j]) == block:
                     raw_grid[x][y] = grid[i][j].t
@@ -546,7 +548,7 @@ class lazor_game:
             self.block_place(grid, b, pos[i])
         return grid
 
-    def generate_positions(self): #NEED TO DO THIS
+    def generate_positions(self):
         """
         Generates a combination of block positions to be used to 
         create grids.
@@ -565,24 +567,6 @@ class lazor_game:
         pos = list(itertools.permutations(p_list, len(self.b_list)))
         return pos
 
-    def generate_grids(self):
-        """
-        Creates a list of grids which will be tested to see if
-        their configuration holds the solution.
-
-        **Returns**
-
-            grids: *list*
-                A list of grids, where a grid is a nested list with
-                a specific configuration of block placement.
-        """
-
-        grids = []
-        pos = self.generate_positions()
-        for i, p in enumerate(pos):
-            grids.append(self.frame(p))
-        return grids
-
     def lazor_solver(self):
         """
         This function solves a level inputted into the lazor game
@@ -590,10 +574,10 @@ class lazor_game:
         and testing to see which configuration wins the level.
         """
 
-        grids = self.generate_grids()
-        print(len(grids))
         done = False
-        for grid in grids:
+        pos = self.generate_positions()
+        for p in pos:
+            grid = self.frame(p)
             if self.push_lazors(grid, dc(self.l_list)):
                 done = True
                 break
@@ -601,5 +585,5 @@ class lazor_game:
             print('Failed Game')
 
 if __name__ == "__main__":
-    a = lazor_game('numbered_6')
+    a = lazor_game('mad_7')
     a.lazor_solver()
