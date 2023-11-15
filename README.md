@@ -27,6 +27,7 @@ Congratulations! You won!
 ['B', 'A', 'x', 'A', 'o'] 
 
 Error in the Code:
+
 Our goal was to create a unique number of configurations for the placements of our blocks
 in the grid. However, we greatly struggled with that so we tried to use the package
 itertools.combination to create a list of all possible unordered combinations of positions.
